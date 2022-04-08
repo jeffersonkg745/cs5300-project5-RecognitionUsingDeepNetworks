@@ -1,5 +1,6 @@
 # Kaelyn Jefferson
 # Project 5: Recognition using Deep Networks
+# Question 1
 
 # import statements
 import torch
@@ -47,7 +48,7 @@ class MyNetwork(nn.Module):
         # max pooling layer with 2x2 window and relu fxn applied
         x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
 
-        # flattening operation?
+        # flattening operation to 1D vec
         x = x.view(-1, 320)
 
         # relu on the output?
@@ -181,6 +182,11 @@ def test(network, test_loader, test_losses):
     return test_losses
 
 
+def testNewInputs():
+
+    return
+
+
 # main function (yes, it needs a comment too)
 def main(argv):
 
@@ -233,6 +239,23 @@ def main(argv):
         plt.ylabel("negative log likelihood loss")
         print(fig)
         plt.show()
+
+        # Question 1E
+        # save the network to a file
+        torch.save(network, "networkSaved.pt")
+
+        # Question 1F
+        network_model = torch.load("networkSaved.pt")  # maybe send this to test()
+        network_model.eval()
+        ##unsure what to do with this
+        ##https://nextjournal.com/gkoehler/pytorch-mnist
+
+        # Question 1G
+        # Test network on new inputs
+        # 1. write and access photos using magik
+        # https://legacy.imagemagick.org/Usage/resize/
+        # 2. make a custom data set for the images
+        # https://pytorch.org/vision/stable/datasets.html#base-classes-for-custom-datasets
 
     elif argv[1] == "import":
         # call something else here
