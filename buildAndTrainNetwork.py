@@ -1,19 +1,21 @@
 # Kaelyn Jefferson
 # Project 5: Recognition using Deep Networks
 # Question 1
+# BUILD WITH: python3 buildAndTrainNetwork.py execute
 
 # import statements
 import torch
 import torchvision
 import torch.nn as nn
 import torch.optim as optim
-
-# import numpy as np
+import numpy as np
 import sys
 import matplotlib.pyplot as plt
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import os
+import cv2
 
 
 # class definitions
@@ -199,6 +201,7 @@ def main(argv):
     # handle any command line arguments in argv
     if argv[1] == "execute":
 
+        """
         # Question 1A
         train_loader, test_loader = prepare_data_set()
 
@@ -245,17 +248,38 @@ def main(argv):
         torch.save(network, "networkSaved.pt")
 
         # Question 1F
+        # read the network
         network_model = torch.load("networkSaved.pt")  # maybe send this to test()
         network_model.eval()
+        """
+
         ##unsure what to do with this
         ##https://nextjournal.com/gkoehler/pytorch-mnist
 
         # Question 1G
         # Test network on new inputs
-        # 1. write and access photos using magik
-        # https://legacy.imagemagick.org/Usage/resize/
-        # 2. make a custom data set for the images
+        # 1. crop and resize photos using magik from command line to 28x28
+
+        # 3. make a custom data set for the images + run them through the network
         # https://pytorch.org/vision/stable/datasets.html#base-classes-for-custom-datasets
+
+        # 2. read images and convert them to grayscale // sourced from: https://medium.com/analytics-vidhya/create-your-own-real-image-dataset-with-python-deep-learning-b2576b63da1e
+
+        # setting the path to the directory containing the pics
+        path = "/Users/kaelynjefferson/Documents/NEU/MSCS/MSCS semesters/2022 Spring/cs5300-project5-RecognitionUsingDeepNetworks/data/numsjpg"
+
+        # appending the pics to the training data list
+        training_data = []
+        for img in os.listdir(path):
+            pic = cv2.imread(os.path.join(path, img), 0)
+            pic = cv2.cvtColor(pic, cv2.COLOR_BGR2GRAY)
+            # pic = cv2.resize(pic, (28, 28))
+            training_data.append([pic])
+        # converting the list to numpy array and saving it to a file using #numpy.save
+        np.save(os.path.join(path, "features"), np.array(training_data))
+
+        # loading the saved file once again
+        saved = np.load(os.path.join(path, "features.npy"), allow_pickle=True)
 
     elif argv[1] == "import":
         # call something else here
