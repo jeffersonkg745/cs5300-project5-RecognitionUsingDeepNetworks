@@ -117,6 +117,7 @@ def createNewSubmodel():
     new_model.eval()
 
     # PROB: should have 20 channels 4x4 in size??
+    print(new_model)
 
     # apply the model to the first example image: use 2nd layer output for submission
     with torch.no_grad():
@@ -159,10 +160,10 @@ def main(argv):
     model = printModel()
 
     # Part 2A
-    # getWeightsOfFirstLayer(model)
+    getWeightsOfFirstLayer(model)
 
     # Part 2B
-    # applyFilters(model)
+    applyFilters(model)
 
     # Part 3C
     createNewSubmodel()
