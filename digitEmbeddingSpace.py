@@ -93,17 +93,39 @@ def createGreekSymbolSet():
         current_img = toGray(current_img)
 
         # invert image intensities
-        reg_image = cv2.imread(totalPath, 0)
-        current_img = np.invert(reg_image)
-        cv2.imwrite(totalPath, current_img)
+        current_img = torchvision.transforms.functional.invert(current_img)
+        # print(np.asarray(current_img))
+        current_img = np.asarray(current_img)
+        intensity_values = []
+        for row in current_img:
+            for each in row:
+                # print(each)
+                intensity_values.append(each)
+
+        # print(len(values))
+
+        """
+        # reg_image = cv2.imread(totalPath, 0)
+        # current_img = np.invert(reg_image)
+        # cv2.imwrite(totalPath, current_img)
+        convert_tensor = torchvision.transforms.ToTensor()
+        current_img = convert_tensor(current_img)
+        # print(len(current_img[0][0]))
 
         # convert nested array to one arr to save to csv
         # https://thispointer.com/python-convert-list-of-lists-or-nested-list-to-flat-list/
         arrOfValues = []
         for each in current_img:
-            arrOfValues.extend(each)
-            print(len(each))
+            # print(each)
+            for i in each:
+                arrOfValues.extend(i)
+            # print(len(each))  # 28 in each
+
+        # print(len(arrOfValues))
         print(len(arrOfValues))
+
+        # also 28 so should multiply correctly to get 784 values
+        """
 
         # writes to csv with values in
         with open(
@@ -112,7 +134,7 @@ def createGreekSymbolSet():
             newline="",
         ) as f:
             writer = csv.writer(f)
-            writer.writerow(arrOfValues)
+            writer.writerow(intensity_values)
 
         # img = cv2.imread(totalPath)
         # print(len(img))
@@ -212,7 +234,7 @@ def main(argv):
     model = Submodel()
 
     # Part 3A
-    # createGreekSymbolSet() #prob: doesnt return correct num of intensity values?
+    createGreekSymbolSet()  # prob: doesnt return correct num of intensity values?
 
     # Part 3B
     # trunc_network = createTruncModel(network_model) #prob: doesn't return b/c can't find fc2
