@@ -5,6 +5,7 @@
 
 # import statements
 from ctypes import sizeof
+from tkinter.dnd import dnd_start
 import torch
 import torchvision
 import torch.nn as nn
@@ -17,45 +18,93 @@ import torch.nn.functional as F
 import torch.optim as optim
 import os
 import cv2
+from Q1FandG import runOnTestSet
 from buildAndTrainNetwork import MyNetwork
 from os import listdir
 from PIL import Image
 import csv
 from subModel import secondSubModel
+import buildAndTrainNetwork
 
 
-# Model subclass of the MyNetwork class that has all but the output layer
-class Submodel(MyNetwork):
+# class definitions
+class Submodel(nn.Module):
+
+    # initializes a network
+    # code sourced from: https://nextjournal.com/gkoehler/pytorch-mnist
     def __init__(self):
-        super().__init__()
+        super(Submodel, self).__init__()
+        # convol layer with 10 5x5 filters
+        self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
 
-    # override the forward method
+        # convol layer with 20 5x5 filters
+        self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
+
+        # convol layer with 0.5 drop out rate
+        self.conv2_drop = nn.Dropout2d(p=0.5)
+
+        # fully connected (linear layer) with 50 nodes
+        self.fc1 = nn.Linear(320, 50)
+
+        # final fully connected layer with 10 nodes
+        # self.fc2 = nn.Linear(50, 10)
+
+    # computes a forward pass for the network
+    # code sourced from: https://nextjournal.com/gkoehler/pytorch-mnist
     def forward(self, x):
-        # relu on max pooled results of conv1
+
+        # max pooling layer with 2x2 window and relu fxn applied
         x = F.relu(F.max_pool2d(self.conv1(x), 2))
 
-        # relu on max pooled results of dropout of conv2
-        x = F.relu(
-            F.max_pool2d(self.conv2_drop(self.conv2(x)), 2)
-        )  # try modifying forward to return after first layer
+        # max pooling layer with 2x2 window and relu fxn applied
+        x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
 
         # flattening operation to 1D vec
         x = x.view(-1, 320)
-        """
 
         # relu on the output?
         x = F.relu(self.fc1(x))
         x = F.dropout(x, training=self.training)
-        x = self.fc2(x)
+        # x = self.fc2(x)
 
         # log.softmax function applied to the output
         return F.log_softmax(x)
-        """
-        return x
+        # return x
 
 
+# source: Maxwell
+class GreekTransform:
+    def __init__(self):
+        pass
+
+    def __call__(self, x):
+        x = torchvision.transforms.functional.rgb_to_grayscale(x)
+        x = torchvision.transforms.functional.affine(x, 0, (0, 0), 36 / 128, 0)
+        x = torchvision.transforms.functional.center_crop(x, (28, 28))
+        return torchvision.transforms.functional.invert(x)
+
+
+# source: Maxwell
 def createGreekSymbolSet():
 
+    greek_loader = torch.utils.data.DataLoader(
+        torchvision.datasets.ImageFolder(
+            "greek",
+            transform=torchvision.transforms.Compose(
+                [
+                    torchvision.transforms.ToTensor(),
+                    GreekTransform(),
+                    torchvision.transforms.Normalize((0.1307,), (0.3081,)),
+                ]
+            ),
+        ),
+        batch_size=27,
+        shuffle=False,
+    )
+
+    # use same code from MNIST for input and applying to the network
+
+    """
     # resets the csv file when you want to create a new greek symbol set
     with open(
         "csvSymbolData.csv",
@@ -94,38 +143,13 @@ def createGreekSymbolSet():
 
         # invert image intensities
         current_img = torchvision.transforms.functional.invert(current_img)
-        # print(np.asarray(current_img))
+        print(np.asarray(current_img))  # PRINTED HERE
         current_img = np.asarray(current_img)
         intensity_values = []
         for row in current_img:
             for each in row:
                 # print(each)
                 intensity_values.append(each)
-
-        # print(len(values))
-
-        """
-        # reg_image = cv2.imread(totalPath, 0)
-        # current_img = np.invert(reg_image)
-        # cv2.imwrite(totalPath, current_img)
-        convert_tensor = torchvision.transforms.ToTensor()
-        current_img = convert_tensor(current_img)
-        # print(len(current_img[0][0]))
-
-        # convert nested array to one arr to save to csv
-        # https://thispointer.com/python-convert-list-of-lists-or-nested-list-to-flat-list/
-        arrOfValues = []
-        for each in current_img:
-            # print(each)
-            for i in each:
-                arrOfValues.extend(i)
-            # print(len(each))  # 28 in each
-
-        # print(len(arrOfValues))
-        print(len(arrOfValues))
-
-        # also 28 so should multiply correctly to get 784 values
-        """
 
         # writes to csv with values in
         with open(
@@ -135,11 +159,6 @@ def createGreekSymbolSet():
         ) as f:
             writer = csv.writer(f)
             writer.writerow(intensity_values)
-
-        # img = cv2.imread(totalPath)
-        # print(len(img))
-        # TODO: why is this returning 133? size is 28x28
-        # converting between cvmat and other
 
         # put values in a dictionary here
         categoryDict = {"alpha": 0, "beta": 1, "gamma": 2}
@@ -157,58 +176,103 @@ def createGreekSymbolSet():
             num = categoryDict.get(subStringOfName)
             writer.writerow(str(num))
 
+    """
+
     return
 
 
-def createTruncModel(network_model):
+def createTruncModel():
 
     # read in the trained model (from main)
     # build a new model from the old network that terminates at the Dense layer with 50 outputs
     # create object
-    new_model = secondSubModel()
+    new_model = Submodel()
 
-    # load state dictionary
+    # read in trained model
+    # truncated model needs boolean for strict shown here: https://pytorch.org/tutorials/beginner/saving_loading_models.html#warmstarting-model-using-parameters-from-a-different-model
     new_model.load_state_dict(
         torch.load(
-            "/Users/kaelynjefferson/Documents/NEU/MSCS/MSCS semesters/2022 Spring/cs5300-project5-RecognitionUsingDeepNetworks/network.pt"
-        )
+            "/Users/kaelynjefferson/Documents/NEU/MSCS/MSCS semesters/2022 Spring/cs5300-project5-RecognitionUsingDeepNetworks/network.pt",
+        ),
+        strict=False,
     )
     new_model.eval()
+    print(new_model)  # shows output features is 50
+
+    # apply network to first training image and see 50 output numbers
+
+    firstImage = cv2.imread("data/custom_nums_all/IMG_0280.jpeg")
 
     with torch.no_grad():
 
         fig = plt.figure()
         for i in range(10):
 
-            firstImage = cv2.imread("data/numsjpg/image0.jpeg")
-
             # convert tensor to numpy for filter2d fxn : https://www.codegrepper.com/code-examples/python/convert+a+tensor+to+numpy+array
             # sourced code on docs: https://docs.opencv.org/4.x/d4/d13/tutorial_py_filtering.html
             kernel = new_model.conv1.weight[i, 0].numpy()
             dst = cv2.filter2D(firstImage, -1, kernel)
 
-            # plot data: sourced matplotlib docs
-            plt.subplot(4, 5, i + 1)
-            plt.tight_layout()
-            plt.imshow(kernel)
-            plt.title("Filter #: {}".format(i))
-            plt.xticks([])
-            plt.yticks([])
+            print(len(dst[0]))
 
-            plt.subplot(4, 5, i + 11)
+    return new_model
+
+
+def projectGreekSymbols(trunc_network):
+
+    # read from the csv file
+    # PROB: convert intensity --> image
+    """
+    with open(
+        "csvSymbolData.csv",
+        newline="",
+    ) as f:
+        reader = csv.reader(f, delimiter=",")
+        for row in reader:
+            # print(row)
+            # print("a new row is here")
+            # convert back to image space with 28x28 values
+
+            a = np.arange(784).reshape((28, 28))
+            print(a)
+
+            current_image = Image.fromarray(np.uint8(a)).convert("L")
+            current_image.save("ConvertedBackPhoto.png")
+
+            print(current_image)
+        # writer = csv.writer(f)
+        # writer.writerow(intensity_values)
+    """
+
+    # read from image folder for now + apply truncated network to get a set of 27 50-element vecs
+    fig = plt.figure()
+    i = 0
+
+    folder_directory = "data/greek-1"
+    for images in os.listdir(folder_directory):
+        path = "/Users/kaelynjefferson/Documents/NEU/MSCS/MSCS semesters/2022 Spring/cs5300-project5-RecognitionUsingDeepNetworks/data/greek-1/"
+        totalPath = path + images
+        print(totalPath)
+        # current_img = Image.open(totalPath)  # current image object
+        current_img = cv2.imread(totalPath)
+
+        # similar as above
+        with torch.no_grad():
+            for i in range(9):
+                kernel = trunc_network.conv1.weight[i, 0].numpy()
+                dst = cv2.filter2D(current_img, -1, kernel)
+                # print(dst)
+
+            plt.subplot(3, 3, i + 1)
             plt.tight_layout()
-            plt.imshow(dst)
+            print(dst)
+            plt.imshow(dst, cmap="gray", interpolation="none")
             plt.title("Img #: {}".format(i))
             plt.xticks([])
             plt.yticks([])
-
-        print(fig)
-        plt.show()
-
-    return
-
-
-def projectGreekSymbols(network):
+            i += 1
+    print(fig)
+    plt.show()
 
     return
 
@@ -231,13 +295,13 @@ def main(argv):
     network_model.eval()
 
     # make a submodel that includes everything but the output layer
-    model = Submodel()
+    # model = Submodel()
 
     # Part 3A
-    createGreekSymbolSet()  # prob: doesnt return correct num of intensity values?
+    createGreekSymbolSet()
 
     # Part 3B
-    # trunc_network = createTruncModel(network_model) #prob: doesn't return b/c can't find fc2
+    # trunc_network = createTruncModel()
 
     # Part 3C
     # projectGreekSymbols(trunc_network)

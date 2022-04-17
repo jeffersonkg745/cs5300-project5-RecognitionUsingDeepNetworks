@@ -76,7 +76,7 @@ def applyFilters(model):
         fig = plt.figure()
         for i in range(10):
 
-            firstImage = cv2.imread("data/numsjpg/image0.jpeg")
+            firstImage = cv2.imread("data/custom_nums_all/IMG_0280.jpeg")
 
             # convert tensor to numpy for filter2d fxn : https://www.codegrepper.com/code-examples/python/convert+a+tensor+to+numpy+array
             # sourced code on docs: https://docs.opencv.org/4.x/d4/d13/tutorial_py_filtering.html
@@ -125,7 +125,7 @@ def createNewSubmodel():
         fig = plt.figure()
         for i in range(10):
 
-            firstImage = cv2.imread("data/numsjpg/image0.jpeg")
+            firstImage = cv2.imread("data/custom_nums_all/IMG_0280.jpeg")
 
             # convert tensor to numpy for filter2d fxn : https://www.codegrepper.com/code-examples/python/convert+a+tensor+to+numpy+array
             # sourced code on docs: https://docs.opencv.org/4.x/d4/d13/tutorial_py_filtering.html
