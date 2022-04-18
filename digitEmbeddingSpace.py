@@ -5,6 +5,7 @@
 
 # import statements
 from ctypes import sizeof
+from distutils.command.build import build
 from tkinter.dnd import dnd_start
 import torch
 import torchvision
@@ -25,6 +26,8 @@ from PIL import Image
 import csv
 from subModel import secondSubModel
 import buildAndTrainNetwork
+import Q1FandG
+import PIL
 
 
 # class definitions
@@ -87,6 +90,20 @@ class GreekTransform:
 # source: Maxwell
 def createGreekSymbolSet():
 
+    # resets the csv file when you want to create a new greek symbol set
+    with open(
+        "csvSymbolData.csv",
+        "w",
+    ) as f:
+        writer = csv.writer(f)
+        writer.writerow("Data for Greek Symbol data set:")
+    with open(
+        "csvSymbolCategories.csv",
+        "w",
+    ) as f:
+        writer = csv.writer(f)
+        writer.writerow("Categories for Greek Symbol data set:")
+
     greek_loader = torch.utils.data.DataLoader(
         torchvision.datasets.ImageFolder(
             "greek",
@@ -102,54 +119,20 @@ def createGreekSymbolSet():
         shuffle=False,
     )
 
-    # use same code from MNIST for input and applying to the network
+    # plot the first six examples of the data
+    examples = enumerate(greek_loader)
+    batch_idx, (example_data, example_targets) = next(examples)
+    # print(example_data.shape)
 
-    """
-    # resets the csv file when you want to create a new greek symbol set
-    with open(
-        "csvSymbolData.csv",
-        "w",
-    ) as f:
-        writer = csv.writer(f)
-        writer.writerow("Data for Greek Symbol data set:")
+    for i in range(27):
 
-    # resets the csv file when you want to create a new greek symbol set
-    with open(
-        "csvSymbolCategories.csv",
-        "w",
-    ) as f:
-        writer = csv.writer(f)
-        writer.writerow("Categories for Greek Symbol data set:")
-
-    # referenced code here: https://www.geeksforgeeks.org/how-to-iterate-through-images-in-a-folder-python/
-    # https://www.tutorialspoint.com/pytorch-how-to-resize-an-image-to-a-given-size
-    # https://www.tutorialspoint.com/pytorch-how-to-convert-an-image-to-grayscale
-    # https://docs.opencv.org/4.x/d0/d86/tutorial_py_image_arithmetics.html
-    # https://www.delftstack.com/howto/python/opencv-invert-image/
-    folder_directory = "data/greek-1"
-    for images in os.listdir(folder_directory):
-        path = "/Users/kaelynjefferson/Documents/NEU/MSCS/MSCS semesters/2022 Spring/cs5300-project5-RecognitionUsingDeepNetworks/data/greek-1/"
-        totalPath = path + images
-        print(totalPath)
-        current_img = Image.open(totalPath)
-
-        # resize to 28x28
-        resized_img = torchvision.transforms.Resize((28, 28))
-        current_img = resized_img(current_img)
-
-        # convert to grayscale
-        toGray = torchvision.transforms.Grayscale()
-        current_img = toGray(current_img)
-
-        # invert image intensities
-        current_img = torchvision.transforms.functional.invert(current_img)
-        print(np.asarray(current_img))  # PRINTED HERE
-        current_img = np.asarray(current_img)
         intensity_values = []
-        for row in current_img:
+        for row in example_data[i][0]:
             for each in row:
                 # print(each)
-                intensity_values.append(each)
+                intensity_values.append(each.item())
+        sample_fname, _ = greek_loader.dataset.samples[i]
+        # print(sample_fname)
 
         # writes to csv with values in
         with open(
@@ -160,9 +143,11 @@ def createGreekSymbolSet():
             writer = csv.writer(f)
             writer.writerow(intensity_values)
 
+        # print("intensity values {}".format(len(intensity_values)))
+
         # put values in a dictionary here
         categoryDict = {"alpha": 0, "beta": 1, "gamma": 2}
-        subStringOfName = images.split("_")[0]
+        subStringOfName = sample_fname.split("/")[1]
         if subStringOfName not in categoryDict:
             categoryDict[subStringOfName] = len(categoryDict)
 
@@ -176,12 +161,10 @@ def createGreekSymbolSet():
             num = categoryDict.get(subStringOfName)
             writer.writerow(str(num))
 
-    """
-
-    return
+    return greek_loader, example_data, example_targets
 
 
-def createTruncModel():
+def createTruncModel(example_data, example_targets):
 
     # read in the trained model (from main)
     # build a new model from the old network that terminates at the Dense layer with 50 outputs
@@ -197,31 +180,56 @@ def createTruncModel():
         strict=False,
     )
     new_model.eval()
-    print(new_model)  # shows output features is 50
+    # print(new_model)  # shows overall output features is 50
 
-    # apply network to first training image and see 50 output numbers
+    output = new_model(example_data)
+    print(
+        "Total output shows 50: {}".format(len(output.data[0]))
+    )  # first example image data shows 50
 
-    firstImage = cv2.imread("data/custom_nums_all/IMG_0280.jpeg")
-
-    with torch.no_grad():
-
-        fig = plt.figure()
-        for i in range(10):
-
-            # convert tensor to numpy for filter2d fxn : https://www.codegrepper.com/code-examples/python/convert+a+tensor+to+numpy+array
-            # sourced code on docs: https://docs.opencv.org/4.x/d4/d13/tutorial_py_filtering.html
-            kernel = new_model.conv1.weight[i, 0].numpy()
-            dst = cv2.filter2D(firstImage, -1, kernel)
-
-            print(len(dst[0]))
-
-    return new_model
+    return
 
 
 def projectGreekSymbols(trunc_network):
 
     # read from the csv file
-    # PROB: convert intensity --> image
+    setOfVectors = []
+
+    with open(
+        "csvSymbolData.csv",
+        newline="",
+    ) as f:
+        reader = csv.reader(f, delimiter=",")
+        for row in reader:
+            # print(row)
+            setOfVectors.append(row)
+
+    print("length of a row of data is {}".format(len(setOfVectors[1])))
+    print("total length of file is {}".format(len(setOfVectors)))
+
+    # convert np array to tensor objects for images
+    i = 1  # skip header of file
+    j = 1  # skip header of file
+    num = 0
+    while i < 28:
+        tensorObjectString = setOfVectors[i]
+        tensor_arr = np.asarray(tensorObjectString, dtype=np.float64)
+        tensor_arr = torch.from_numpy(tensor_arr)
+        print(tensor_arr)
+        # plt.imshow(tensor_arr.numpy()[0], cmap="gray")
+
+        """
+            # https://cloudxlab.com/assessment/displayslide/5658/converting-tensor-to-image
+            tensor = tensor * 255
+            tensor = np.array(tensor, dtype=np.uint8)
+            if np.ndim(tensor) > 3:
+                assert tensor.shape[0] == 1
+                tensor = tensor[0]
+            our_image = Image.fromarray(tensor)
+            our_image.save("{}.png".format(num))
+            num += 1
+            """
+
     """
     with open(
         "csvSymbolData.csv",
@@ -242,7 +250,8 @@ def projectGreekSymbols(trunc_network):
             print(current_image)
         # writer = csv.writer(f)
         # writer.writerow(intensity_values)
-    """
+
+
 
     # read from image folder for now + apply truncated network to get a set of 27 50-element vecs
     fig = plt.figure()
@@ -273,6 +282,7 @@ def projectGreekSymbols(trunc_network):
             i += 1
     print(fig)
     plt.show()
+    """
 
     return
 
@@ -294,17 +304,18 @@ def main(argv):
     network_model = torch.load("networkSaved.pt")
     network_model.eval()
 
-    # make a submodel that includes everything but the output layer
-    # model = Submodel()
-
     # Part 3A
-    createGreekSymbolSet()
+    (
+        greek_loader,
+        example_data,
+        example_targets,
+    ) = createGreekSymbolSet()
 
     # Part 3B
-    # trunc_network = createTruncModel()
+    trunc_network = createTruncModel(example_data, example_targets)
 
     # Part 3C
-    # projectGreekSymbols(trunc_network)
+    projectGreekSymbols(trunc_network)
 
     # Part 3D
     # computeDistEmbeddingSpace()
