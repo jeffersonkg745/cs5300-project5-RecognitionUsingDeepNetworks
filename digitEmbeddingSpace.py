@@ -192,7 +192,7 @@ def createTruncModel(example_data, example_targets):
 
 def projectGreekSymbols(trunc_network):
 
-    # read from the csv file
+    # get data from csv file
     setOfVectors = []
 
     with open(
@@ -200,12 +200,51 @@ def projectGreekSymbols(trunc_network):
         newline="",
     ) as f:
         reader = csv.reader(f, delimiter=",")
-        for row in reader:
-            # print(row)
-            setOfVectors.append(row)
 
-    print("length of a row of data is {}".format(len(setOfVectors[1])))
-    print("total length of file is {}".format(len(setOfVectors)))
+        totalArr = []
+
+        row_count = 0
+        row_pointer = 0
+        for row in reader:
+            if row_pointer == 0:
+                row_pointer += 1
+                continue
+            row = np.reshape(row, (28, 28))
+            totalArr.append(row)
+        print(len(totalArr))  # 27 is correct
+
+        """
+            # keeps track of which row youre on (1 to 27)
+            row_count += 1
+            # print("The length of the row is {}", row)  # 31 if header 784 if not
+
+            if row_pointer == 0:
+                row_pointer += 1
+                continue
+
+            current_row = [[0] * 28] * 28
+
+            for i in range(27):
+                for j in range(27):
+                    if row_pointer == 784:
+                        break
+                    current_row[i][j] = row[row_pointer]
+                    row_pointer += 1
+            # set this for the next row
+            row_pointer = 0
+            setOfVectors[0].append(current_row)
+            print("added ", len(setOfVectors))
+            """
+
+        # print(len(setOfVectors))
+
+    """
+    print(
+        "length of a row of data is {}".format(len(setOfVectors[1]))
+    )  # 784 row of data length
+    print("total length of file is {}".format(len(setOfVectors)))  # 28 file length
+
+    # convert csv file data to images (then send to network to get the 27 50 element vectors)
 
     # convert np array to tensor objects for images
     i = 1  # skip header of file
@@ -215,10 +254,12 @@ def projectGreekSymbols(trunc_network):
         tensorObjectString = setOfVectors[i]
         tensor_arr = np.asarray(tensorObjectString, dtype=np.float64)
         tensor_arr = torch.from_numpy(tensor_arr)
-        print(tensor_arr)
-        # plt.imshow(tensor_arr.numpy()[0], cmap="gray")
-
+        # PROB: has entire array for 784 values
+        # print(tensor_arr)
+        # plt.imshow(tensor_arr.numpy()[0], cmap="gray"
         """
+
+    """
             # https://cloudxlab.com/assessment/displayslide/5658/converting-tensor-to-image
             tensor = tensor * 255
             tensor = np.array(tensor, dtype=np.uint8)
@@ -310,6 +351,10 @@ def main(argv):
         example_data,
         example_targets,
     ) = createGreekSymbolSet()
+
+    # print(example_data[0][0][0]) #28
+    # print(len(example_data[0][0]))  # 28
+    # print(len(example_data[0])) #1
 
     # Part 3B
     trunc_network = createTruncModel(example_data, example_targets)
