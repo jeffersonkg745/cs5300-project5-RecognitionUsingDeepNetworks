@@ -31,9 +31,7 @@ class Submodel(MyNetwork):
         x = F.relu(F.max_pool2d(self.conv1(x), 2))
 
         # relu on max pooled results of dropout of conv2
-        x = F.relu(
-            F.max_pool2d(self.conv2_drop(self.conv2(x)), 2)
-        )  # try modifying forward to return after first layer
+        x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
         return x
 
 
@@ -45,6 +43,7 @@ def printModel():
     return network_model
 
 
+# analyze the first layer
 def getWeightsOfFirstLayer(model):
 
     fig = plt.figure()
@@ -69,7 +68,8 @@ def getWeightsOfFirstLayer(model):
     return
 
 
-# opencv docs
+# apply the filters to the model
+# sourced: opencv docs
 def applyFilters(model):
     with torch.no_grad():
 
@@ -115,8 +115,6 @@ def createNewSubmodel():
         )
     )
     new_model.eval()
-
-    # PROB: should have 20 channels 4x4 in size??
     print(new_model)
 
     # apply the model to the first example image: use 2nd layer output for submission
@@ -153,7 +151,7 @@ def createNewSubmodel():
     return
 
 
-# main function (yes, it needs a comment too)
+# main calls functions to examine the network
 def main(argv):
 
     # Part 2

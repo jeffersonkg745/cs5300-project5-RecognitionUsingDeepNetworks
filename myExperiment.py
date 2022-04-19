@@ -1,6 +1,6 @@
 # Kaelyn Jefferson
-# Project 5: Recognition using Deep Networks -- Question 1
-# BUILD WITH: python3 buildAndTrainNetwork.py execute
+# Project 5: Recognition using Deep Networks -- Question 4 My own Experiment
+# run with "python3 myExperiment.py 1", "python3 myExperiment.py 2", "python3 myExperiment.py 3"
 
 # import statements
 import torch
@@ -18,7 +18,7 @@ import cv2
 import time
 
 
-# class definitions
+# class for network
 class MyNetwork(nn.Module):
 
     # initializes a network
@@ -68,7 +68,6 @@ class MyNetwork(nn.Module):
 def prepare_data_set(batch_size_train):
 
     # get the MNIST digit data set
-    # batch_size_train = 64
     batch_size_test = 1000
 
     train_loader = torch.utils.data.DataLoader(
@@ -110,21 +109,6 @@ def prepare_data_set(batch_size_train):
     batch_idx, (example_data, example_targets) = next(examples)
     print(example_data.shape)
 
-    """
-    fig = plt.figure()
-    for i in range(6):
-        plt.subplot(2, 3, i + 1)
-        plt.tight_layout()
-        print(example_data[i][0])
-
-        plt.imshow(example_data[i][0], cmap="gray", interpolation="none")
-        plt.title("Ground Truth: {}".format(example_targets[i]))
-        plt.xticks([])
-        plt.yticks([])
-    print(fig)
-    plt.show()
-    """
-
     return train_loader, test_loader, example_data, example_targets
 
 
@@ -155,8 +139,7 @@ def train_network(
             train_counter.append(
                 (batch_idx * 64) + ((epoch - 1) * len(train_loader.dataset))
             )
-            # torch.save(network.state_dict(), "network.pt")
-            # torch.save(optimizer.state_dict(), "optimizer.pt")
+
     return train_losses, train_counter
 
 
@@ -186,6 +169,7 @@ def test(network, test_loader, test_losses):
     return test_losses
 
 
+# training the model
 def trainModel(network, train_loader, test_loader, optimizer, n_epochs):
 
     test_losses = []
@@ -208,24 +192,13 @@ def trainModel(network, train_loader, test_loader, optimizer, n_epochs):
         )
         test_losses = test(network, test_loader, test_losses)
 
-    """
-    fig = plt.figure()
-    plt.plot(train_counter, train_losses, color="blue")
-    plt.scatter(test_counter, test_losses, color="red")
-    plt.legend(["Train Loss", "Test Loss"], loc="upper right")
-    plt.xlabel("number of training examples seen")
-    plt.ylabel("negative log likelihood loss")
-    print(fig)
-    plt.show()
-    """
-
     return
 
 
-# main function (yes, it needs a comment too)
+# main function to call experiments
 def main(argv):
 
-    # alter network structure by these 3 variables:
+    # MY EXPERIMENT: alter network structure by these 3 variables:
     # batch size
     # n_epochs
     # drop out rate in networks
@@ -288,6 +261,7 @@ def main(argv):
             )
 
             # training the model: time this
+            # timer sourced from: https://stackoverflow.com/questions/7370801/how-to-measure-elapsed-time-in-python
             start = time.time()
             trainModel(network, train_loader, test_loader, optimizer, n_epochs)
             end = time.time()
@@ -295,8 +269,6 @@ def main(argv):
             print("TOTAL TIME ELAPSED: ", totalTime)
 
             ourArrOfAllTimes.append(totalTime)
-
-        # main function code
 
         for i in range(len(ourArrOfAllTimes)):
             print(
@@ -316,7 +288,7 @@ def main(argv):
         epochs = [1, 2, 3, 4, 5]
 
         for i in range(len(epochs)):
-            batch_size_train = 90  # CHANGE HERE FOR OPTIMAL
+            batch_size_train = 90
             n_epochs = epochs[i]
             network = MyNetwork(0.2)
 
@@ -348,8 +320,6 @@ def main(argv):
             print("TOTAL TIME ELAPSED: ", totalTime)
 
             ourArrOfAllTimes.append(totalTime)
-
-        # main function code
 
         for i in range(len(ourArrOfAllTimes)):
             print(
@@ -390,7 +360,7 @@ def main(argv):
 
         for i in range(len(dropOutRates)):
             batch_size_train = 90
-            n_epochs = 5  # CHANGE THIS WHEN WE KNOW
+            n_epochs = 5
             network = MyNetwork(dropOutRates[i])
 
             random_seed = 42

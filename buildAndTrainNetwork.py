@@ -1,6 +1,6 @@
 # Kaelyn Jefferson
 # Project 5: Recognition using Deep Networks -- Question 1
-# BUILD WITH: python3 buildAndTrainNetwork.py execute
+# BUILD WITH: python3 buildAndTrainNetwork.py
 
 # import statements
 import torch
@@ -17,7 +17,7 @@ import os
 import cv2
 
 
-# class definitions
+# class for network
 class MyNetwork(nn.Module):
 
     # initializes a network
@@ -52,7 +52,7 @@ class MyNetwork(nn.Module):
         # flattening operation to 1D vec
         x = x.view(-1, 320)
 
-        # relu on the output?
+        # relu on the output
         x = F.relu(self.fc1(x))
         x = F.dropout(x, training=self.training)
         x = self.fc2(x)
@@ -72,7 +72,6 @@ def prepare_data_set():
 
     train_loader = torch.utils.data.DataLoader(
         torchvision.datasets.MNIST(
-            # root="data",
             "mnist",
             train=True,
             download=True,
@@ -89,7 +88,6 @@ def prepare_data_set():
 
     test_loader = torch.utils.data.DataLoader(
         torchvision.datasets.MNIST(
-            # root="data",
             "mnist",
             train=False,
             download=True,
@@ -160,7 +158,6 @@ def train_network(
 # testing the model
 # code sourced from: https://nextjournal.com/gkoehler/pytorch-mnist
 def test(network, test_loader, test_losses):
-
     network.eval()
     test_loss = 0
     correct = 0
@@ -183,7 +180,40 @@ def test(network, test_loader, test_losses):
     return test_losses
 
 
-# main function (yes, it needs a comment too)
+def trainModel(train_loader, network, test_loader, optimizer):
+    test_losses = []
+    train_losses = []
+    train_counter = []
+    n_epochs = 5
+    test_counter = [i * len(train_loader.dataset) for i in range(n_epochs + 1)]
+
+    log_interval = 10
+    test_losses = test(network, test_loader, test_losses)
+    for epoch in range(1, n_epochs + 1):
+        train_losses, train_counter = train_network(
+            network,
+            optimizer,
+            log_interval,
+            epoch,
+            train_loader,
+            train_losses,
+            train_counter,
+        )
+        test_losses = test(network, test_loader, test_losses)
+
+    fig = plt.figure()
+    plt.plot(train_counter, train_losses, color="blue")
+    plt.scatter(test_counter, test_losses, color="red")
+    plt.legend(["Train Loss", "Test Loss"], loc="upper right")
+    plt.xlabel("number of training examples seen")
+    plt.ylabel("negative log likelihood loss")
+    print(fig)
+    plt.show()
+
+    return
+
+
+# main function that calls functions to build and train a network to recognize digits
 def main(argv):
 
     # Question 1B
@@ -192,61 +222,27 @@ def main(argv):
     torch.backends.cudnn.enabled = False
     torch.manual_seed(random_seed)
 
-    # handle any command line arguments in argv
-    if argv[1] == "execute":
+    # Question 1A
+    # get the MNIST digit data set
+    train_loader, test_loader, example_data, example_targets = prepare_data_set()
 
-        # Question 1A
-        train_loader, test_loader, example_data, example_targets = prepare_data_set()
+    # Question 1C
+    # Build a network model
+    learning_rate = 0.01
+    momentum = 0.5
+    network = MyNetwork()
+    optimizer = optim.SGD(network.parameters(), lr=learning_rate, momentum=momentum)
 
-        # Question 1C
-        # Build a network model
-        learning_rate = 0.01
-        momentum = 0.5
-        network = MyNetwork()
-        optimizer = optim.SGD(network.parameters(), lr=learning_rate, momentum=momentum)
+    # Question 1D
+    # training the model
+    trainModel(train_loader, network, test_loader, optimizer)
 
-        # Question 1D
-        # training the model
-        test_losses = []
-        train_losses = []
-        train_counter = []
-        n_epochs = 5
-        test_counter = [i * len(train_loader.dataset) for i in range(n_epochs + 1)]
+    # Question 1E
+    # save the network to a file
+    torch.save(network, "networkSaved.pt")
 
-        log_interval = 10
-        test_losses = test(network, test_loader, test_losses)
-        for epoch in range(1, n_epochs + 1):
-            train_losses, train_counter = train_network(
-                network,
-                optimizer,
-                log_interval,
-                epoch,
-                train_loader,
-                train_losses,
-                train_counter,
-            )
-            test_losses = test(network, test_loader, test_losses)
+    # PART F AND G ARE IN Q1FandG.py
 
-        fig = plt.figure()
-        plt.plot(train_counter, train_losses, color="blue")
-        plt.scatter(test_counter, test_losses, color="red")
-        plt.legend(["Train Loss", "Test Loss"], loc="upper right")
-        plt.xlabel("number of training examples seen")
-        plt.ylabel("negative log likelihood loss")
-        print(fig)
-        plt.show()
-
-        # Question 1E
-        # save the network to a file
-        torch.save(network, "networkSaved.pt")
-
-        # PART F AND G ARE IN Q1FandG.py
-
-    elif argv[1] == "import":
-        # call something else here
-        print("fxn not created yet")
-
-    # main function code
     return
 
 

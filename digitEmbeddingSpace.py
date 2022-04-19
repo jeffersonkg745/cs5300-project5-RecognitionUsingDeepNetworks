@@ -7,6 +7,7 @@
 from ctypes import sizeof
 from distutils.command.build import build
 from tkinter.dnd import dnd_start
+from cv2 import compare
 import torch
 import torchvision
 import torch.nn as nn
@@ -29,8 +30,7 @@ import buildAndTrainNetwork
 import Q1FandG
 import PIL
 
-
-# class definitions
+# class for network
 class Submodel(nn.Module):
 
     # initializes a network
@@ -65,17 +65,15 @@ class Submodel(nn.Module):
         # flattening operation to 1D vec
         x = x.view(-1, 320)
 
-        # relu on the output?
+        # relu on the output
         x = F.relu(self.fc1(x))
         x = F.dropout(x, training=self.training)
-        # x = self.fc2(x)
 
         # log.softmax function applied to the output
         return F.log_softmax(x)
-        # return x
 
 
-# source: Maxwell
+# source: Dr. Maxwell sample code
 class GreekTransform:
     def __init__(self):
         pass
@@ -87,7 +85,7 @@ class GreekTransform:
         return torchvision.transforms.functional.invert(x)
 
 
-# source: Maxwell
+# creates the greek symbol set given the sample images
 def createGreekSymbolSet(csvSymbolData, csvSymbolCategories, greekFolder):
 
     # resets the csv file when you want to create a new greek symbol set
@@ -104,6 +102,7 @@ def createGreekSymbolSet(csvSymbolData, csvSymbolCategories, greekFolder):
         writer = csv.writer(f)
         writer.writerow("Categories for Greek Symbol data set:")
 
+    # source: Dr. Maxwell sample code
     greek_loader = torch.utils.data.DataLoader(
         torchvision.datasets.ImageFolder(
             greekFolder,
@@ -122,17 +121,13 @@ def createGreekSymbolSet(csvSymbolData, csvSymbolCategories, greekFolder):
     # plot the first six examples of the data
     examples = enumerate(greek_loader)
     batch_idx, (example_data, example_targets) = next(examples)
-    # print(example_data.shape)
 
     for i in range(27):
-
         intensity_values = []
         for row in example_data[i][0]:
             for each in row:
-                # print(each)
                 intensity_values.append(each.item())
         sample_fname, _ = greek_loader.dataset.samples[i]
-        # print(sample_fname)
 
         # writes to csv with values in
         with open(
@@ -142,8 +137,6 @@ def createGreekSymbolSet(csvSymbolData, csvSymbolCategories, greekFolder):
         ) as f:
             writer = csv.writer(f)
             writer.writerow(intensity_values)
-
-        # print("intensity values {}".format(len(intensity_values)))
 
         # put values in a dictionary here
         categoryDict = {"alpha": 0, "beta": 1, "gamma": 2}
@@ -164,6 +157,7 @@ def createGreekSymbolSet(csvSymbolData, csvSymbolCategories, greekFolder):
     return greek_loader, example_data, example_targets
 
 
+# creates the truncated model from the old network that terminates at the dense layer with 50 outputs
 def createTruncModel(example_data, example_targets):
 
     # read in the trained model (from main)
@@ -190,16 +184,17 @@ def createTruncModel(example_data, example_targets):
     return
 
 
+# projects the greek symbols into the embedding space
 def projectGreekSymbols(trunc_network, csvsymboldata):
 
     # get data from csv file
-
     with open(
         csvsymboldata,
         newline="",
     ) as f:
         reader = csv.reader(f, delimiter=",")
 
+        # keeps array of image intensities
         totalArr = []
 
         row_count = 0
@@ -212,11 +207,10 @@ def projectGreekSymbols(trunc_network, csvsymboldata):
             totalArr.append(row)
         print(len(totalArr))  # 27 is correct
 
-        # prob: we now have tensor objects in an array --> how to get to image space?
-
     return totalArr
 
 
+# compute the distances in the embedding space
 def computeDistEmbeddingSpace(network, totalArr, csvsymboldata):
 
     with open(
@@ -245,8 +239,7 @@ def computeDistEmbeddingSpace(network, totalArr, csvsymboldata):
         print("total: ", len(totalArr))
 
         # compute sum squared difference here between each alpha, beta, gamma and the 27 in totalArr
-
-        # for each example image: alpha, beta, gamma
+        # 3 = for each example image: alpha, beta, gamma
         for x in range(3):
 
             currentImage = AlphaBetaGammaImagesData[x]
@@ -255,16 +248,15 @@ def computeDistEmbeddingSpace(network, totalArr, csvsymboldata):
             for y in range(27):
                 SSD = 0
                 comparedImage = totalArr[y]
-                # print(comparedImage)
 
                 # go through image coordinates here
                 for i in range(27):
                     for j in range(27):
-                        # print(comparedImage[i][j])
-                        ourImageValue = np.float32(currentImage[i][j])
-                        comparedImageValue = np.float32(comparedImage[i][j])
-                        # print(type(ourImageValue))
-                        # print(type(comparedImageValue))
+
+                        # unsure how to convert tensor value to image space
+                        # divide by 255 to get values between 0 and 1
+                        ourImageValue = np.float32(currentImage[i][j]) / 255
+                        comparedImageValue = np.float32(comparedImage[i][j]) / 255
 
                         # do SSD here as distance metric
                         difference = ourImageValue - comparedImageValue
@@ -281,6 +273,7 @@ def computeDistEmbeddingSpace(network, totalArr, csvsymboldata):
     return
 
 
+# using my own greek symbol data, see how they match in the embedding space
 def ownGreekSymbolData(network):
 
     # note: I replaced first image in alpha, beta, and gamma with my own greek image letters
@@ -291,15 +284,13 @@ def ownGreekSymbolData(network):
     )
 
     trunc_network = createTruncModel(example_data, example_targets)
-
     totalArr = projectGreekSymbols(trunc_network, "csvSymbolDataMyExamples.csv")
-
     computeDistEmbeddingSpace(trunc_network, totalArr, "csvSymbolDataMyExamples.csv")
 
     return
 
 
-# main function (yes, it needs a comment too)
+# main calls functions to create a digit embedding space
 def main(argv):
 
     # read in the network
@@ -312,10 +303,6 @@ def main(argv):
         example_data,
         example_targets,
     ) = createGreekSymbolSet("csvSymbolData.csv", "csvSymbolCategories.csv", "greek")
-
-    # print(example_data[0][0][0]) #28
-    # print(len(example_data[0][0]))  # 28
-    # print(len(example_data[0])) #1
 
     # Part 3B
     trunc_network = createTruncModel(example_data, example_targets)
