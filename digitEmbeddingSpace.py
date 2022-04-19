@@ -88,17 +88,17 @@ class GreekTransform:
 
 
 # source: Maxwell
-def createGreekSymbolSet():
+def createGreekSymbolSet(csvSymbolData, csvSymbolCategories, greekFolder):
 
     # resets the csv file when you want to create a new greek symbol set
     with open(
-        "csvSymbolData.csv",
+        csvSymbolData,
         "w",
     ) as f:
         writer = csv.writer(f)
         writer.writerow("Data for Greek Symbol data set:")
     with open(
-        "csvSymbolCategories.csv",
+        csvSymbolCategories,
         "w",
     ) as f:
         writer = csv.writer(f)
@@ -106,7 +106,7 @@ def createGreekSymbolSet():
 
     greek_loader = torch.utils.data.DataLoader(
         torchvision.datasets.ImageFolder(
-            "greek",
+            greekFolder,
             transform=torchvision.transforms.Compose(
                 [
                     torchvision.transforms.ToTensor(),
@@ -136,7 +136,7 @@ def createGreekSymbolSet():
 
         # writes to csv with values in
         with open(
-            "csvSymbolData.csv",
+            csvSymbolData,
             "a",
             newline="",
         ) as f:
@@ -153,7 +153,7 @@ def createGreekSymbolSet():
 
         # writes each line's symbol categories
         with open(
-            "csvSymbolCategories.csv",
+            csvSymbolCategories,
             "a",
             newline="",
         ) as f:
@@ -190,13 +190,12 @@ def createTruncModel(example_data, example_targets):
     return
 
 
-def projectGreekSymbols(trunc_network):
+def projectGreekSymbols(trunc_network, csvsymboldata):
 
     # get data from csv file
-    setOfVectors = []
 
     with open(
-        "csvSymbolData.csv",
+        csvsymboldata,
         newline="",
     ) as f:
         reader = csv.reader(f, delimiter=",")
@@ -213,127 +212,89 @@ def projectGreekSymbols(trunc_network):
             totalArr.append(row)
         print(len(totalArr))  # 27 is correct
 
-        """
-            # keeps track of which row youre on (1 to 27)
-            row_count += 1
-            # print("The length of the row is {}", row)  # 31 if header 784 if not
+        # prob: we now have tensor objects in an array --> how to get to image space?
 
-            if row_pointer == 0:
-                row_pointer += 1
-                continue
+    return totalArr
 
-            current_row = [[0] * 28] * 28
 
-            for i in range(27):
-                for j in range(27):
-                    if row_pointer == 784:
-                        break
-                    current_row[i][j] = row[row_pointer]
-                    row_pointer += 1
-            # set this for the next row
-            row_pointer = 0
-            setOfVectors[0].append(current_row)
-            print("added ", len(setOfVectors))
-            """
+def computeDistEmbeddingSpace(network, totalArr, csvsymboldata):
 
-        # print(len(setOfVectors))
-
-    """
-    print(
-        "length of a row of data is {}".format(len(setOfVectors[1]))
-    )  # 784 row of data length
-    print("total length of file is {}".format(len(setOfVectors)))  # 28 file length
-
-    # convert csv file data to images (then send to network to get the 27 50 element vectors)
-
-    # convert np array to tensor objects for images
-    i = 1  # skip header of file
-    j = 1  # skip header of file
-    num = 0
-    while i < 28:
-        tensorObjectString = setOfVectors[i]
-        tensor_arr = np.asarray(tensorObjectString, dtype=np.float64)
-        tensor_arr = torch.from_numpy(tensor_arr)
-        # PROB: has entire array for 784 values
-        # print(tensor_arr)
-        # plt.imshow(tensor_arr.numpy()[0], cmap="gray"
-        """
-
-    """
-            # https://cloudxlab.com/assessment/displayslide/5658/converting-tensor-to-image
-            tensor = tensor * 255
-            tensor = np.array(tensor, dtype=np.uint8)
-            if np.ndim(tensor) > 3:
-                assert tensor.shape[0] == 1
-                tensor = tensor[0]
-            our_image = Image.fromarray(tensor)
-            our_image.save("{}.png".format(num))
-            num += 1
-            """
-
-    """
     with open(
-        "csvSymbolData.csv",
+        csvsymboldata,
         newline="",
     ) as f:
         reader = csv.reader(f, delimiter=",")
+
+        AlphaBetaGammaImagesData = []
+
+        row_count = 0
+        row_pointer = 0
         for row in reader:
-            # print(row)
-            # print("a new row is here")
-            # convert back to image space with 28x28 values
+            if row_pointer == 0:
+                row_pointer += 1
+                continue
+            row = np.reshape(row, (28, 28))
 
-            a = np.arange(784).reshape((28, 28))
-            print(a)
+            if row_pointer == 1 or row_pointer == 10 or row_pointer == 19:
 
-            current_image = Image.fromarray(np.uint8(a)).convert("L")
-            current_image.save("ConvertedBackPhoto.png")
+                AlphaBetaGammaImagesData.append(row)
 
-            print(current_image)
-        # writer = csv.writer(f)
-        # writer.writerow(intensity_values)
+            # increment pointer to look at next row of data in csv
+            row_pointer += 1
+        print("alpha beta gam: ", len(AlphaBetaGammaImagesData))  # should be 3
+        print("total: ", len(totalArr))
 
+        # compute sum squared difference here between each alpha, beta, gamma and the 27 in totalArr
 
+        # for each example image: alpha, beta, gamma
+        for x in range(3):
 
-    # read from image folder for now + apply truncated network to get a set of 27 50-element vecs
-    fig = plt.figure()
-    i = 0
+            currentImage = AlphaBetaGammaImagesData[x]
 
-    folder_directory = "data/greek-1"
-    for images in os.listdir(folder_directory):
-        path = "/Users/kaelynjefferson/Documents/NEU/MSCS/MSCS semesters/2022 Spring/cs5300-project5-RecognitionUsingDeepNetworks/data/greek-1/"
-        totalPath = path + images
-        print(totalPath)
-        # current_img = Image.open(totalPath)  # current image object
-        current_img = cv2.imread(totalPath)
+            # for each image overall (27 total)
+            for y in range(27):
+                SSD = 0
+                comparedImage = totalArr[y]
+                # print(comparedImage)
 
-        # similar as above
-        with torch.no_grad():
-            for i in range(9):
-                kernel = trunc_network.conv1.weight[i, 0].numpy()
-                dst = cv2.filter2D(current_img, -1, kernel)
-                # print(dst)
+                # go through image coordinates here
+                for i in range(27):
+                    for j in range(27):
+                        # print(comparedImage[i][j])
+                        ourImageValue = np.float32(currentImage[i][j])
+                        comparedImageValue = np.float32(comparedImage[i][j])
+                        # print(type(ourImageValue))
+                        # print(type(comparedImageValue))
 
-            plt.subplot(3, 3, i + 1)
-            plt.tight_layout()
-            print(dst)
-            plt.imshow(dst, cmap="gray", interpolation="none")
-            plt.title("Img #: {}".format(i))
-            plt.xticks([])
-            plt.yticks([])
-            i += 1
-    print(fig)
-    plt.show()
-    """
+                        # do SSD here as distance metric
+                        difference = ourImageValue - comparedImageValue
+                        SSD = SSD + (difference * difference)
 
-    return
-
-
-def computeDistEmbeddingSpace(network):
+                # image 0 is alpha example used
+                # image 1 is beta example used
+                # image 2 is gamma example used
+                # images 0 to 9 are alpha
+                # images 10 to 18 are beta
+                # images 19 to 27 are gamma
+                print("Using image ", x, ", the SSD with image ", y, "is: ", SSD)
 
     return
 
 
 def ownGreekSymbolData(network):
+
+    # note: I replaced first image in alpha, beta, and gamma with my own greek image letters
+    (greek_loader, example_data, example_targets,) = createGreekSymbolSet(
+        "csvSymbolDataMyExamples.csv",
+        "csvSymbolCategoriesMyExamples.csv",
+        "greekWithMyExamples",
+    )
+
+    trunc_network = createTruncModel(example_data, example_targets)
+
+    totalArr = projectGreekSymbols(trunc_network, "csvSymbolDataMyExamples.csv")
+
+    computeDistEmbeddingSpace(trunc_network, totalArr, "csvSymbolDataMyExamples.csv")
 
     return
 
@@ -350,7 +311,7 @@ def main(argv):
         greek_loader,
         example_data,
         example_targets,
-    ) = createGreekSymbolSet()
+    ) = createGreekSymbolSet("csvSymbolData.csv", "csvSymbolCategories.csv", "greek")
 
     # print(example_data[0][0][0]) #28
     # print(len(example_data[0][0]))  # 28
@@ -360,13 +321,14 @@ def main(argv):
     trunc_network = createTruncModel(example_data, example_targets)
 
     # Part 3C
-    projectGreekSymbols(trunc_network)
+    totalArr = projectGreekSymbols(trunc_network, "csvSymbolData.csv")
 
     # Part 3D
-    # computeDistEmbeddingSpace()
+    computeDistEmbeddingSpace(trunc_network, totalArr, "csvSymbolData.csv")
 
     # Part 3E
-    # ownGreekSymbolData() #basically similar to part D using these eamples
+    # took my own images and replaced first images within the alpha, beta, gamma the directories
+    ownGreekSymbolData(network_model)
 
     return
 
